@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        #gameContainer {
+            width: 1360px;
+            height: 768px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #333;
+            border-radius: 10px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .game {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .betting {
+            display: flex;
+            align-items: center; /* Alinha tudo na mesma altura */
+            justify-content: center; /* Centraliza os elementos */
+            width: 100%; /* Aumenta a largura para 100% para permitir a centralização */
+            margin-top: 20px;
+        }
+        .betting input {
+            width: 100px;
+            height: 32px; /* Ajusta a altura da caixa de valor para a mesma altura dos botões */
+            margin-right: 10px; /* Adiciona uma margem à direita da caixa de valor */
+        }
+        .betting button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 42px; /* Aumenta a largura dos botões em 10 pixels cada */
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+        }
+        .betting button:disabled {
+            background-color: #555555; /* Cor de fundo mais escura para botões desabilitados */
+        }
+        #history {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100px;
+            height: 100%;
+            overflow: auto;
+            background-color: #333;
+            color: white;
+            padding: 10px;
+        }
+        #multiplier {
+            font-size: 3em;
+        }
+        #cooldown {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: #FFD700;
+            font-size: 1.5em;
+        }
+        #payout {
+            display: inline-block;
+            margin-left: 10px;
+            margin-top: 10px; /* Posiciona o valor equivalente um pouco mais para baixo */
+        }
+        .message {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #4CAF50;
+            color: white;
+            padding: 16px;
+            border-radius: 5px;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        .message.show {
+            opacity: 1;
+        }
+        #countdown {
+            font-size: 2em;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="countdown"></div>
+        <div class="game">
+            <h2 id="multiplier">1.00x</h2>
+        </div>
+        <div class="betting">
+            <button id="doubleButton" onclick="doubleBet()">2X</button>
+            <input type="number" id="betValue" min="0" placeholder="Valor">
+            <button id="betButton" onclick="placeBet()" disabled>Apostar</button>
+            <button id="cashOutButton" onclick="cashOut()" disabled class="disabled">Retirar</button>
+            <input type="number" id="autoCashOut" min="0" placeholder="Auto Retirar" disabled>
+            <span id="payout">R$0.00</span>
+        </div>
+        <div id="message" class="message"></div>
+        <div id="history"></div>
+    </div>
+    <script>
+        let multiplier = 1.00;
+        let crashPoint = Math.random() * 6;
+        let playerPoint = Math.random() * 4;
+        let interval;
+        let betPlaced = false;
+        let roundDuration = 20000;
+        let betValue;
+        let cooldown = 5000;
+        let cashedOut = false;
+        let countdownValue = 10;
+        let countdownInterval;
+        let autoCashOutValue;
+
+        function placeBet() {
+            betValue = document.getElementById('betValue').value;
+            autoCashOutValue = document.getElementById('autoCashOut').value;
+            if (!betValue || betValue <= 0) {
+                betValue = 0; // Se nenhuma aposta for feita, o valor da aposta é definido como 0
+            } else {
+                betPlaced = true;
+                document.getElementById('betButton').disabled = true;
+                document.getElementById('cashOutButton').disabled = false;
+                document.getElementById('autoCashOut').disabled = true;
+            }
+        }
+
+        function doubleBet() {
+            let betInput = document.getElementById('betValue');
+            betInput.value = betInput.value * 2;
+        }
+
+        function startRound() {
+            interval = setInterval(function() {
+                multiplier += 0.01;
+                document.getElementById('multiplier').innerText = multiplier.toFixed(2) + 'x';
+                document.getElementById('payout').innerText = 'R$' + (betValue * multiplier).toFixed(2);
+                if (multiplier >= crashPoint) {
+                    clearInterval(interval);
+                    document.getElementById('multiplier').style.color = 'red';
+                    showMessage('Crash!');
+                    addToHistory(crashPoint.toFixed(2));
+                    resetGame();
+                } else if (multiplier >= autoCashOutValue) {
+                    cashOut();
+                }
+            }, 100);
+        }
+
+        function cashOut() {
+            if (multiplier < crashPoint && !document.getElementById('cashOutButton').disabled) {
+                cashedOut = true;
+                let winnings = betValue * multiplier;
+                showMessage('Você retirou-se em ' + multiplier.toFixed(2) + 'x! Valor Ganho: R$' + winnings.toFixed(2));
+                document.getElementById('cashOutButton').disabled = true;
+            }
+        }
+
+        function resetGame() {
+            setTimeout(function() {
+                multiplier = 1.00;
+                crashPoint = Math.random() * 6;
+                playerPoint = Math.random() * 4;
+                betPlaced = false;
+                cashedOut = false;
+                document.getElementById('multiplier').innerText = '1.00x';
+                document.getElementById('multiplier').style.color = 'white';
+                document.getElementById('betButton').disabled = false;
+                document.getElementById('cashOutButton').disabled = true;
+                document.getElementById('autoCashOut').disabled = false;
+                countdown();
+            }, cooldown);
+        }
+
+        function countdown() {
+            document.getElementById('countdown').innerText = 'Nova rodada em ' + countdownValue;
+            countdownInterval = setInterval(function() {
+                countdownValue--;
+                if (countdownValue < 0) {
+                    clearInterval(countdownInterval);
+                    countdownValue = 10;
+                    document.getElementById('countdown').innerText = '';
+                    startRound();
+                } else {
+                    document.getElementById('countdown').innerText = 'Nova rodada em ' + countdownValue;
+                }
+            }, 1000);
+        }
+
+        function addToHistory(crashPoint) {
+            let history = document.getElementById('history');
+            let item = document.createElement('p');
+            item.innerText = crashPoint + 'x';
+            item.style.color = 'white';
+            history.prepend(item);
+        }
+
+        function showMessage(msg) {
+            let messageElement = document.getElementById('message');
+            messageElement.innerText = msg;
+            messageElement.classList.add('show');
+            setTimeout(function() {
+                messageElement.classList.remove('show');
+            }, 5000);
+        }
+
+        countdown();
+    </script>
+</body>
+</html>
